@@ -1,0 +1,84 @@
+# Virtual Environment
+myvenv/
+env/
+ENV/
+.myvenv
+myvenv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+
+# Flask
+instance/
+.webassets-cache
+*.db
+*.sqlite
+*.sqlite3
+
+# Database (Your parking.db)
+parking.db
+*.db-journal
+
+# Environment Variables (IMPORTANT - Contains secrets!)
+.env
+.env.local
+.flaskenv
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - PyCharm
+.idea/
+*.iml
+*.iws
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat.pid
+
+# Redis dump
+dump.rdb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook (if you use it)
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+
+# Temporary files
+*.tmp
+*.temp
+~*

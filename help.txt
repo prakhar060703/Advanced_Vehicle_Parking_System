@@ -1,0 +1,11 @@
+Start the app (5 terminals):
+
+Terminal 1: redis-server --port 6380
+
+Terminal 2: python backend/app.py
+
+Terminal 3: celery -A tasks worker --loglevel=info --pool=solo (from backend folder)
+
+Terminal 4: celery -A tasks beat --loglevel=info (from backend folder)
+
+Terminal 5: python -m http.server 8080

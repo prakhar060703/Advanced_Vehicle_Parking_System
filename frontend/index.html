@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Parking App</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Vue 3 from CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Chart.js for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #21808d;
+        }
+        .btn-primary {
+            background-color: #21808d;
+            border-color: #21808d;
+        }
+        .btn-primary:hover {
+            background-color: #1a6670;
+            border-color: #1a6670;
+        }
+        .status-available {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-occupied {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .modal.show {
+            display: block;
+            background-color: rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">🚗 Vehicle Parking App</a>
+                <div class="navbar-nav ms-auto" v-if="isLoggedIn">
+                    <span class="navbar-text text-white me-3">
+                        Welcome, {{ currentUser.username }} 
+                        <span class="badge bg-success" v-if="currentUser.role === 'admin'">Admin</span>
+                    </span>
+                    <button class="btn btn-outline-light btn-sm" @click="logout">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <!-- Login Component -->
+            <div v-if="!isLoggedIn" class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link" :class="{active: showLogin}" @click="showLogin = true; showRegister = false" style="cursor:pointer;">Login</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" :class="{active: showRegister}" @click="showRegister = true; showLogin = false" style="cursor:pointer;">Register</a>
+                                </li>
+                            </ul>
+
+                            <!-- Login Form -->
+                            <div v-if="showLogin">
+                                <h4>Login</h4>
+                                <form @submit.prevent="login">
+                                    <div class="mb-3">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" v-model="loginForm.username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Password</label>
+                                        <input type="password" class="form-control" v-model="loginForm.password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                                </form>
+                                <div class="alert alert-info mt-3">
+                                    <strong>Admin Credentials:</strong><br>
+                                    Username: admin<br>
+                                    Password: admin123
+                                </div>
+                            </div>
+
+                            <!-- Register Form -->
+                            <div v-if="showRegister">
+                                <h4>Register</h4>
+                                <form @submit.prevent="register">
+                                    <div class="mb-3">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" v-model="registerForm.username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" v-model="registerForm.email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Password</label>
+                                        <input type="password" class="form-control" v-model="registerForm.password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard -->
+            <div v-if="isLoggedIn && currentUser.role === 'admin'">
+                <h2>Admin Dashboard</h2>
+                
+                <!-- Stats Cards -->
+                <div class="row">
+                    <div class="col-md-3" v-for="stat in adminStats" :key="stat.label">
+                        <div class="card stat-card">
+                            <div class="stat-number">{{ stat.value }}</div>
+                            <div>{{ stat.label }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mt-4" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{active: activeTab === 'lots'}" @click="activeTab = 'lots'" style="cursor:pointer;">Parking Lots</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{active: activeTab === 'users'}" @click="activeTab = 'users'" style="cursor:pointer;">Users</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{active: activeTab === 'reservations'}" @click="activeTab = 'reservations'" style="cursor:pointer;">Reservations</a>
+                    </li>
+                </ul>
+
+                <!-- Parking Lots Tab -->
+                <div v-if="activeTab === 'lots'" class="mt-3">
+                    <button class="btn btn-primary mb-3" @click="showCreateLotModal = true">Create Parking Lot</button>
+                    
+                    <div class="row">
+                        <div class="col-md-6" v-for="lot in parkingLots" :key="lot.id">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ lot.prime_location_name }}</h5>
+                                    <p class="card-text">
+                                        <strong>Address:</strong> {{ lot.address }}<br>
+                                        <strong>Price:</strong> ₹{{ lot.price_per_hour }}/hr<br>
+                                        <strong>Total Spots:</strong> {{ lot.number_of_spots }}<br>
+                                        <strong>Available:</strong> <span class="status-available">{{ lot.available_spots }}</span><br>
+                                        <strong>Occupied:</strong> <span class="status-occupied">{{ lot.occupied_spots }}</span>
+                                    </p>
+                                    <button class="btn btn-sm btn-warning me-2" @click="editLot(lot)">Edit</button>
+                                    <button class="btn btn-sm btn-danger" @click="deleteLot(lot.id)">Delete</button>
+                                    <button class="btn btn-sm btn-info" @click="viewSpots(lot)">View Spots</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div v-if="activeTab === 'users'" class="mt-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Created At</th>
+                                        <th>Last Login</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="user in users" :key="user.id">
+                                        <td>{{ user.id }}</td>
+                                        <td>{{ user.username }}</td>
+                                        <td>{{ user.email }}</td>
+                                        <td>{{ formatDate(user.created_at) }}</td>
+                                        <td>{{ formatDate(user.last_login) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reservations Tab -->
+                <div v-if="activeTab === 'reservations'" class="mt-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>User</th>
+                                        <th>Lot</th>
+                                        <th>Spot</th>
+                                        <th>Parking Time</th>
+                                        <th>Duration</th>
+                                        <th>Cost</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="res in reservations" :key="res.id">
+                                        <td>{{ res.id }}</td>
+                                        <td>{{ res.username }}</td>
+                                        <td>{{ res.lot_name }}</td>
+                                        <td>{{ res.spot_number }}</td>
+                                        <td>{{ formatDate(res.parking_timestamp) }}</td>
+                                        <td>{{ res.duration_hours ? res.duration_hours + ' hrs' : 'N/A' }}</td>
+                                        <td>₹{{ res.parking_cost || 'N/A' }}</td>
+                                        <td>
+                                            <span class="badge" :class="res.status === 'Active' ? 'bg-success' : 'bg-secondary'">
+                                                {{ res.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Dashboard -->
+            <div v-if="isLoggedIn && currentUser.role === 'user'">
+                <h2>My Dashboard</h2>
+                
+                <!-- Stats Cards -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card stat-card">
+                            <div class="stat-number">{{ userStats.total_bookings || 0 }}</div>
+                            <div>Total Bookings</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card">
+                            <div class="stat-number">₹{{ userStats.total_spent || 0 }}</div>
+                            <div>Total Spent</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card">
+                            <div class="stat-number">{{ userStats.month_bookings || 0 }}</div>
+                            <div>This Month</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card">
+                            <div class="stat-number">₹{{ userStats.month_spent || 0 }}</div>
+                            <div>Month Spent</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Booking -->
+                <div v-if="userStats.has_active_booking" class="alert alert-info">
+                    <h5>🚗 Active Booking</h5>
+                    <p v-if="userStats.active_booking">
+                        <strong>Location:</strong> {{ userStats.active_booking.lot_name }}<br>
+                        <strong>Spot:</strong> {{ userStats.active_booking.spot_number }}<br>
+                        <strong>Since:</strong> {{ formatDate(userStats.active_booking.parking_timestamp) }}
+                    </p>
+                    <button class="btn btn-warning" @click="releaseSpot(userStats.active_booking.id)">Release Spot</button>
+                </div>
+
+                <button class="btn btn-primary mb-3" @click="showBookingModal = true" :disabled="userStats.has_active_booking">
+                    Book Parking Spot
+                </button>
+                <button class="btn btn-secondary mb-3 ms-2" @click="exportCSV">Export History (CSV)</button>
+
+                <!-- Reservation History -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Reservation History</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Lot</th>
+                                    <th>Spot</th>
+                                    <th>Parking Time</th>
+                                    <th>Leaving Time</th>
+                                    <th>Duration</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="res in myReservations" :key="res.id">
+                                    <td>{{ res.lot_name }}</td>
+                                    <td>{{ res.spot_number }}</td>
+                                    <td>{{ formatDate(res.parking_timestamp) }}</td>
+                                    <td>{{ res.leaving_timestamp ? formatDate(res.leaving_timestamp) : 'Active' }}</td>
+                                    <td>{{ res.duration_hours ? res.duration_hours + ' hrs' : 'N/A' }}</td>
+                                    <td>₹{{ res.parking_cost || 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge" :class="res.status === 'Active' ? 'bg-success' : 'bg-secondary'">
+                                            {{ res.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create/Edit Parking Lot Modal -->
+            <div class="modal" :class="{show: showCreateLotModal || editingLot}" v-if="showCreateLotModal || editingLot">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ editingLot ? 'Edit' : 'Create' }} Parking Lot</h5>
+                            <button type="button" class="btn-close" @click="closeModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form @submit.prevent="submitLot">
+                                <div class="mb-3">
+                                    <label class="form-label">Location Name</label>
+                                    <input type="text" class="form-control" v-model="lotForm.prime_location_name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Price per Hour (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" v-model="lotForm.price_per_hour" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" v-model="lotForm.address" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">PIN Code</label>
+                                    <input type="text" class="form-control" v-model="lotForm.pin_code" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Number of Spots</label>
+                                    <input type="number" class="form-control" v-model="lotForm.number_of_spots" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">{{ editingLot ? 'Update' : 'Create' }}</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Modal -->
+            <div class="modal" :class="{show: showBookingModal}" v-if="showBookingModal">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Book Parking Spot</h5>
+                            <button type="button" class="btn-close" @click="showBookingModal = false"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div v-if="availableLots.length === 0" class="alert alert-warning">
+                                No parking lots available at the moment.
+                            </div>
+                            <div v-for="lot in availableLots" :key="lot.id" class="card mb-2">
+                                <div class="card-body">
+                                    <h6>{{ lot.prime_location_name }}</h6>
+                                    <p class="mb-2">
+                                        <small>{{ lot.address }}</small><br>
+                                        <strong>₹{{ lot.price_per_hour }}/hr</strong> | 
+                                        Available: {{ lot.available_spots }}
+                                    </p>
+                                    <button class="btn btn-sm btn-primary" @click="bookSpot(lot.id)">Book Here</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spots View Modal -->
+            <div class="modal" :class="{show: showSpotsModal}" v-if="showSpotsModal">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Parking Spots - {{ currentViewingLot?.prime_location_name }}</h5>
+                            <button type="button" class="btn-close" @click="showSpotsModal = false"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-3" v-for="spot in currentSpots" :key="spot.id">
+                                    <div class="card mb-2" :class="spot.status === 'A' ? 'border-success' : 'border-danger'">
+                                        <div class="card-body text-center">
+                                            <h6>{{ spot.spot_number }}</h6>
+                                            <span :class="spot.status === 'A' ? 'status-available' : 'status-occupied'">
+                                                {{ spot.status_label }}
+                                            </span>
+                                            <div v-if="spot.current_reservation" class="mt-2">
+                                                <small>{{ spot.current_reservation.username }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/app.js"></script>
+</body>
+</html>
